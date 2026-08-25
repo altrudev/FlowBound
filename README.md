@@ -21,7 +21,16 @@ The first executable component is the deterministic **FlowBound Gate**. Google A
 
 ## Repository status
 
-Early competition build. The deterministic gate, tests, and first Google ADK agent definition are included. Cloud deployment, persistent case storage, multimodal evidence processing, and the complete agent fleet are being added during the hackathon period.
+Active competition build. The repository currently includes:
+
+- deterministic FlowBound Gate
+- Google ADK / Gemini agent definition
+- Cloud Firestore transition-decision persistence adapter
+- Cloud Pub/Sub workflow event publisher
+- an execution path that evaluates a transition, persists its decision, and emits an asynchronous event
+- reproducible unit tests for the gate and Google Cloud adapters
+
+Cloud deployment, multimodal field evidence processing, the complete agent fleet, successor-state verification, Model Armor integration, and the judge-facing UI are being added during the hackathon period.
 
 ## Reproducible testing
 
@@ -63,7 +72,7 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-The tests do not require Google Cloud credentials. They verify the current authority-envelope behavior for allowed actions, stale predecessor state, authority mismatch, out-of-scope effects, and untrusted input.
+The tests do not require Google Cloud credentials. They verify authority-envelope behavior plus the Firestore/Pub/Sub integration boundaries with deterministic fake clients.
 
 ## Run the ADK agent locally
 
@@ -86,17 +95,33 @@ Open the local URL printed by ADK and select `flowbound_agent`.
 
 > The deterministic `pytest` suite is the reproducible baseline and remains independent of model output or cloud availability.
 
-## Initial architecture
+## Google Cloud integration
+
+### Firestore
+
+`flowbound/cloud_store.py` persists each gate decision beneath:
+
+`cases/{case_id}/transitions/{transition_id}`
+
+The stored record includes the structured transition proposal, final gate decision, and reason.
+
+### Pub/Sub
+
+`flowbound/events.py` publishes JSON workflow events to a configured Pub/Sub topic. `flowbound/workflow.py` currently emits `flowbound.transition.decided` after each evaluated transition.
+
+For a live Google Cloud run, enable Firestore and Pub/Sub in the project, create a Pub/Sub topic (for example `flowbound-events`), and authenticate with Application Default Credentials or the workload identity used by the deployed runtime.
+
+## Architecture
 
 - **Google ADK / Gemini** — agent reasoning and structured action proposals
 - **FlowBound Gate** — deterministic transition authorization
-- **Vertex AI / Google Cloud** — target model and runtime environment
-- **Firestore** — planned durable case state
-- **Pub/Sub** — planned asynchronous follow-up events
-- **Cloud Run / Agent Runtime** — planned deployment targets
+- **Cloud Firestore** — integrated durable transition/case state adapter
+- **Cloud Pub/Sub** — integrated asynchronous workflow event adapter
+- **Vertex AI / Google Cloud** — Gemini execution environment
+- **Cloud Run / Agent Runtime** — planned deployment target
 - **Model Armor** — planned untrusted-input protection layer
 
-Only components that are actually integrated by submission time will be claimed in the final Devpost submission.
+Only components actually integrated by submission time will be claimed in the final Devpost submission.
 
 ## License
 
