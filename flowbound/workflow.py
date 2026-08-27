@@ -20,6 +20,8 @@ class GovernedStore(DecisionStore, Protocol):
     ) -> StateSnapshot: ...
     def record_execution(self, **payload: Any) -> None: ...
     def record_verification(self, **payload: Any) -> None: ...
+    def is_recovery_required(self, case_id: str) -> bool: ...
+    def set_recovery_required(self, *, case_id: str, transition_id: str, reason: str) -> None: ...
 
 
 class EventPublisher(Protocol):
@@ -154,6 +156,8 @@ def govern_and_execute(
     executor: CaseStateExecutor | None = None,
     observer: StoreStateObserver | None = None,
     evidence_ids: tuple[str, ...] = (),
+    originating_need: str = "",
+    agent_rationale: str = "",
 ) -> TransitionOutcome:
     """Authorize, execute, then independently re-observe and verify one transition."""
     executor = executor or CaseStateExecutor(store)
@@ -174,6 +178,8 @@ def govern_and_execute(
             human_approval_present=human_approval_present,
             policy_version=POLICY_VERSION,
             evidence_ids=evidence_ids,
+            originating_need=originating_need,
+            agent_rationale=agent_rationale,
         )
     else:
         proposal = TransitionProposal(
@@ -189,6 +195,8 @@ def govern_and_execute(
             human_approval_present=human_approval_present,
             policy_version=POLICY_VERSION,
             evidence_ids=evidence_ids,
+            originating_need=originating_need,
+            agent_rationale=agent_rationale,
         )
 
     gate = evaluate_transition(proposal)
@@ -220,4 +228,21 @@ def govern_and_execute(
         "flowbound.transition.verified",
         {"case_id": case_id, "transition_id": transition_id, "status": verification.status.value},
     ))
+
+    if verification.status is VerificationStatus.PASS:
+        event_ids.append(events.publish(
+            "flowbound.transition.accepted",
+            {"case_id": case_id, "transition_id": transition_id},
+        ))
+    else:
+        store.set_recovery_required(
+            case_id=case_id,
+            transition_id=transition_id,
+            reason=verification.reason,
+        )
+        event_ids.append(events.publish(
+            "flowbound.transition.recovery_required",
+            {"case_id": case_id, "transition_id": transition_id, "reason": verification.reason},
+        ))
+
     return TransitionOutcome(gate, receipt, verification, tuple(event_ids))
