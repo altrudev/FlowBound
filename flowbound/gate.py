@@ -25,6 +25,8 @@ class TransitionProposal:
     human_approval_present: bool = False
     policy_version: str = "unknown"
     evidence_ids: tuple[str, ...] = ()
+    originating_need: str = ""
+    agent_rationale: str = ""
 
 
 @dataclass(frozen=True)
