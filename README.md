@@ -1,36 +1,51 @@
 # FlowBound
 
-FlowBound is a governed multi-agent system for consequential workflows. The hackathon demo focuses on a frontline building inspector whose agent fleet can interpret field evidence, propose remediation actions, and continue long-running follow-up without silently exceeding its authority.
+FlowBound is a governed multi-agent system for consequential workflows. The Google All Things Agentic Hackathon demo focuses on a frontline building inspector whose agent fleet can interpret field evidence, propose remediation actions, and continue long-running follow-up without silently exceeding its authority.
 
-## Competition track
+**Track:** Fortified Enterprise Fleet  
+**Repository:** https://github.com/altrudev/FlowBound  
+**Created by:** Valentyn Rukhaylo · Altru.dev
 
-Google All Things Agentic Hackathon — Fortified Enterprise Fleet.
-
-## Core idea
+## Core invariant
 
 Agents may reason freely, but consequential state transitions must remain inside an explicit authority envelope.
 
-`current state -> evidence -> actor authority -> proposed action -> permitted effect -> execution -> successor validation`
+`originating need -> authority/policy -> exact predecessor -> proposed effect -> gate -> execution -> successor verification -> accept or recovery block`
 
-The first executable component is the deterministic **FlowBound Gate**. Google ADK agents can propose structured actions; the gate independently returns one of:
+The model proposes an effect. It does **not** supply its own authority or successor state. Server-side FlowBound policy determines the required authority and expected successor.
 
-- `ALLOW`
-- `REJECT`
-- `ESCALATE`
-- `QUARANTINE`
+## Current vertical slice
 
-## Repository status
+The repository now contains a runnable end-to-end application path:
 
-Active competition build. The repository currently includes:
+1. a case is created with revisioned state (`OPEN@0`)
+2. a Google ADK fleet reasons over the inspector observation
+3. the final agent emits a structured effect proposal
+4. FlowBound re-reads the exact predecessor state after model reasoning
+5. the deterministic Gate returns `ALLOW`, `REJECT`, `ESCALATE`, or `QUARANTINE`
+6. an allowed effect executes through compare-and-set state mutation
+7. Firestore persists decision/execution/verification evidence
+8. Pub/Sub emits transition events
+9. the verifier independently re-reads observed state rather than trusting the executor receipt
+10. a conformant successor is explicitly accepted; a mismatch blocks the case for recovery
 
-- deterministic FlowBound Gate
-- Google ADK / Gemini agent definition
-- Cloud Firestore transition-decision persistence adapter
-- Cloud Pub/Sub workflow event publisher
-- an execution path that evaluates a transition, persists its decision, and emits an asynchronous event
-- reproducible unit tests for the gate and Google Cloud adapters
+### Google ADK fleet
 
-Cloud deployment, multimodal field evidence processing, the complete agent fleet, successor-state verification, Model Armor integration, and the judge-facing UI are being added during the hackathon period.
+`flowbound_agent/agent.py` defines three Gemini 3.5 Flash specialists:
+
+- **Intake Agent** — separates field observations from assumptions
+- **Evidence Agent** — challenges evidence and suspicious instruction-like content
+- **Action Agent** — emits one structured policy-named effect and never claims authorization
+
+The agents run sequentially through Google ADK. `flowbound/adk_client.py` bridges the fleet's structured final proposal into the deterministic FlowBound transition path.
+
+### FlowBound transition boundary
+
+`flowbound/policy.py` owns the demo state machine and authority mapping. The model can request a named effect, but policy derives its legal predecessor, required authority, successor state, and human-approval rule.
+
+Exact state identity is revision-bound. A proposal captured at `OPEN@0` is rejected if the case becomes `OPEN@1` or any other state/revision before authorization.
+
+Firestore execution uses transactional compare-and-set to close the race between authorization and mutation.
 
 ## Reproducible testing
 
@@ -39,89 +54,145 @@ Cloud deployment, multimodal field evidence processing, the complete agent fleet
 - Python 3.11+
 - Git
 
-### 1. Clone
-
 ```bash
 git clone https://github.com/altrudev/FlowBound.git
 cd FlowBound
-```
-
-### 2. Create an isolated environment
-
-```bash
 python -m venv .venv
 source .venv/bin/activate
-```
-
-On Windows PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-### 3. Install the project and test dependencies
-
-```bash
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
-```
-
-### 4. Run the deterministic test suite
-
-```bash
 pytest -q
 ```
 
-The tests do not require Google Cloud credentials. They verify authority-envelope behavior plus the Firestore/Pub/Sub integration boundaries with deterministic fake clients.
+Current deterministic suite: **22 tests**.
 
-## Run the ADK agent locally
+The suite covers:
 
-FlowBound uses Google's Agent Development Kit (`google-adk>=1.29.0`). To exercise the Gemini-backed agent, configure Application Default Credentials and a Google Cloud project:
+- allowed transitions
+- stale predecessor state and revision
+- state change during model reasoning
+- authority mismatch
+- out-of-envelope and unknown effects
+- quarantine of untrusted evidence
+- explicit human escalation
+- Firestore/Pub/Sub adapter behavior
+- compare-and-set race protection
+- successful execute/verify/accept lineage
+- a deliberately lying executor whose success claim is rejected by successor verification
+
+The deterministic suite requires no Google Cloud credentials. Cloud/model execution is a separate integration gate.
+
+## Run locally without Google credentials
+
+The local development fallback lets the full API/UI and deterministic transition path run without spending model/cloud quota:
+
+```bash
+export FLOWBOUND_BACKEND=memory
+export FLOWBOUND_AGENT_MODE=demo
+uvicorn flowbound.api:app --reload
+```
+
+Open `http://127.0.0.1:8000`.
+
+`FLOWBOUND_AGENT_MODE=demo` is a development fallback only. It is **not** the hackathon proof path and must not be presented as Gemini execution.
+
+## Run the Google ADK fleet locally
+
+Authenticate and select Vertex AI:
 
 ```bash
 gcloud auth application-default login
 export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
-export GOOGLE_CLOUD_LOCATION="us-central1"
+export GOOGLE_CLOUD_LOCATION="global"
 export GOOGLE_GENAI_USE_VERTEXAI="TRUE"
+export FLOWBOUND_BACKEND=memory
+export FLOWBOUND_AGENT_MODE=google
+uvicorn flowbound.api:app --reload
 ```
 
-Then launch ADK's local developer UI:
+Gemini 3.5 Flash is the configured model for all three ADK agents.
+
+## Google Cloud path
+
+Integrated code paths exist for:
+
+- **Vertex AI / Gemini 3.5 Flash** through Google ADK
+- **Cloud Firestore** for durable case and transition evidence
+- **Cloud Pub/Sub** for asynchronous transition events
+- **Cloud Run** deployment via `Dockerfile` and `scripts/deploy-cloud-run.sh`
+
+### Deployment prerequisites
+
+The deployment script deliberately avoids creating/deleting Firestore automatically. Before running it:
+
+1. select/create the Google Cloud project
+2. enable billing as required by Google Cloud
+3. create the default Firestore Native database
+4. authenticate `gcloud`
+
+Then:
 
 ```bash
-adk web
+export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
+export GOOGLE_CLOUD_LOCATION="global"
+./scripts/deploy-cloud-run.sh
 ```
 
-Open the local URL printed by ADK and select `flowbound_agent`.
+The script:
 
-> The deterministic `pytest` suite is the reproducible baseline and remains independent of model output or cloud availability.
+- enables the required APIs
+- creates the Pub/Sub topic if missing
+- creates a dedicated FlowBound runtime service account if missing
+- grants only `datastore.user`, `pubsub.publisher`, and `aiplatform.user`
+- verifies the default Firestore database exists
+- deploys the container to Cloud Run
+- prints the resulting Cloud Run URL
 
-## Google Cloud integration
+**Important:** deployment configuration is not deployment evidence. As of this README revision, the repository is prepared for the authenticated Google Cloud integration step; the final Devpost submission should only claim the live services after they have actually been exercised and captured in runtime evidence.
 
-### Firestore
+## DDC review
 
-`flowbound/cloud_store.py` persists each gate decision beneath:
+A reproducible architecture review is committed at:
 
-`cases/{case_id}/transitions/{transition_id}`
+`docs/DDC-REVIEW-2026-08-26.md`
 
-The stored record includes the structured transition proposal, final gate decision, and reason.
+It uses the canonical DDC standing-principles registry at commit:
 
-### Pub/Sub
+`376e5d75d2a6cdef557eb8acccfd24cfba238ec8`
 
-`flowbound/events.py` publishes JSON workflow events to a configured Pub/Sub topic. `flowbound/workflow.py` currently emits `flowbound.transition.decided` after each evaluated transition.
+### Current DDC disposition
 
-For a live Google Cloud run, enable Firestore and Pub/Sub in the project, create a Pub/Sub topic (for example `flowbound-events`), and authenticate with Application Default Credentials or the workload identity used by the deployed runtime.
+**STAGE / ACCEPT FOR GOOGLE CLOUD INTEGRATION TESTING. NOT YET FINAL PRODUCTION ASSURANCE.**
 
-## Architecture
+The review specifically records unresolved work rather than claiming it is complete:
 
-- **Google ADK / Gemini** — agent reasoning and structured action proposals
-- **FlowBound Gate** — deterministic transition authorization
-- **Cloud Firestore** — integrated durable transition/case state adapter
-- **Cloud Pub/Sub** — integrated asynchronous workflow event adapter
-- **Vertex AI / Google Cloud** — Gemini execution environment
-- **Cloud Run / Agent Runtime** — planned deployment target
-- **Model Armor** — planned untrusted-input protection layer
+- evidence-trust classification still needs an independent cloud security boundary (for example Model Armor + deterministic policy)
+- successor verification is independent of the executor receipt but still shares the same process/state-store failure domain
+- independent recovery evidence/unblocking is not yet implemented
+- Google Cloud runtime execution evidence is still required
 
-Only components actually integrated by submission time will be claimed in the final Devpost submission.
+## Architecture responsibility split
+
+| Layer | Responsibility |
+| --- | --- |
+| Gemini 3.5 Flash | probabilistic interpretation/reasoning |
+| Google ADK | specialist-agent orchestration |
+| FlowBound policy | named effects, predecessor rules, required authority, successor state |
+| FlowBound Gate | deterministic authorization decision |
+| Firestore transaction | exact compare-and-set state mutation |
+| Successor verifier | independently observe and compare resulting state |
+| Pub/Sub | asynchronous transition/event lineage |
+| Recovery block | fail closed when successor evidence does not conform |
+
+## Next build gates
+
+1. authenticate a Google Cloud project and run the ADK fleet against Gemini 3.5 Flash
+2. create Firestore and Pub/Sub resources and exercise the real adapters
+3. deploy to Cloud Run and capture the `.run` URL/log evidence
+4. replace the demo evidence-trust input with Model Armor / independent classification
+5. strengthen postcondition verification across a more independent failure domain
+6. expand the inspector UI for the final adversarial demo
+7. only then record the required public demo video
 
 ## License
 
