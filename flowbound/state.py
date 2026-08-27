@@ -26,6 +26,7 @@ class InMemoryCaseStore:
         self.decisions: dict[tuple[str, str], dict[str, Any]] = {}
         self.executions: dict[tuple[str, str], dict[str, Any]] = {}
         self.verifications: dict[tuple[str, str], dict[str, Any]] = {}
+        self.recovery_blocks: dict[str, dict[str, str]] = {}
 
     def create_case(self, case_id: str, state: str = "OPEN") -> StateSnapshot:
         if case_id in self.cases:
@@ -56,6 +57,12 @@ class InMemoryCaseStore:
         successor = StateSnapshot(successor_state, current.revision + 1)
         self.cases[case_id] = successor
         return successor
+
+    def is_recovery_required(self, case_id: str) -> bool:
+        return case_id in self.recovery_blocks
+
+    def set_recovery_required(self, *, case_id: str, transition_id: str, reason: str) -> None:
+        self.recovery_blocks[case_id] = {"transition_id": transition_id, "reason": reason}
 
     def record_decision(self, **payload: Any) -> None:
         self.decisions[(payload["case_id"], payload["transition_id"])] = payload
