@@ -23,6 +23,8 @@ class TransitionProposal:
     evidence_trusted: bool = True
     requires_human_approval: bool = False
     human_approval_present: bool = False
+    policy_version: str = "unknown"
+    evidence_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -33,7 +35,6 @@ class GateResult:
 
 def evaluate_transition(proposal: TransitionProposal) -> GateResult:
     """Evaluate a proposed consequential transition without model judgment."""
-
     if not proposal.evidence_trusted:
         return GateResult(
             Decision.QUARANTINE,
