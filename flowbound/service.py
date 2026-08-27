@@ -47,6 +47,9 @@ class FlowBoundService:
         human_approval_present: bool,
         evidence_ids: tuple[str, ...] = (),
     ) -> tuple[AgentActionProposal, TransitionOutcome]:
+        if self.store.is_recovery_required(case_id):
+            raise RuntimeError(f"Case {case_id} is blocked pending independent recovery evidence")
+
         authorized_predecessor = self.store.get_case_snapshot(case_id)
         agent_proposal = await self.agent.propose(
             observation=observation,
@@ -64,5 +67,7 @@ class FlowBoundService:
             store=self.store,
             events=self.events,
             evidence_ids=evidence_ids,
+            originating_need=observation,
+            agent_rationale=agent_proposal.rationale,
         )
         return agent_proposal, outcome
