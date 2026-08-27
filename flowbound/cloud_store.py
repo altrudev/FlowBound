@@ -35,7 +35,7 @@ class FirestoreTransitionStore:
     def create_case(self, case_id: str, state: str = "OPEN") -> StateSnapshot:
         snapshot = StateSnapshot(state=state, revision=0)
         self._client.collection("cases").document(case_id).set(
-            {"state": snapshot.state, "revision": snapshot.revision}
+            {"state": snapshot.state, "revision": snapshot.revision, "recovery_required": False}
         )
         return snapshot
 
@@ -86,6 +86,22 @@ class FirestoreTransitionStore:
             return successor
 
         return mutate(transaction)
+
+    def is_recovery_required(self, case_id: str) -> bool:
+        doc = self._client.collection("cases").document(case_id).get()
+        if not getattr(doc, "exists", True):
+            raise KeyError(f"Unknown case: {case_id}")
+        return bool((doc.to_dict() or {}).get("recovery_required", False))
+
+    def set_recovery_required(self, *, case_id: str, transition_id: str, reason: str) -> None:
+        self._client.collection("cases").document(case_id).set(
+            {
+                "recovery_required": True,
+                "recovery_transition_id": transition_id,
+                "recovery_reason": reason,
+            },
+            merge=True,
+        )
 
     def record_decision(self, *, case_id: str, transition_id: str, proposal: TransitionProposal, result: GateResult) -> None:
         payload = {
