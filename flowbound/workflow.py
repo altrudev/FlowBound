@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 from .gate import Decision, GateResult, TransitionProposal, evaluate_transition
-from .policy import EffectRule, POLICY_VERSION, permitted_effects, resolve_effect
+from .policy import POLICY_VERSION, EffectRule, permitted_effects, resolve_effect
 from .state import StateConflict, StateSnapshot
 
 
@@ -162,6 +162,9 @@ def govern_and_execute(
     evidence_ids: tuple[str, ...] = (),
     originating_need: str = "",
     agent_rationale: str = "",
+    agent_provider: str = "",
+    agent_model: str = "",
+    agent_trace_id: str = "",
 ) -> TransitionOutcome:
     """Authorize, execute, then independently re-observe and verify one transition."""
     executor = executor or CaseStateExecutor(store)
@@ -186,6 +189,9 @@ def govern_and_execute(
             evidence_ids=evidence_ids,
             originating_need=originating_need,
             agent_rationale=agent_rationale,
+            agent_provider=agent_provider,
+            agent_model=agent_model,
+            agent_trace_id=agent_trace_id,
         )
     else:
         proposal = TransitionProposal(
@@ -205,6 +211,9 @@ def govern_and_execute(
             evidence_ids=evidence_ids,
             originating_need=originating_need,
             agent_rationale=agent_rationale,
+            agent_provider=agent_provider,
+            agent_model=agent_model,
+            agent_trace_id=agent_trace_id,
         )
 
     gate = evaluate_transition(proposal)

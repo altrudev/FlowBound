@@ -11,6 +11,7 @@ class GoogleAdkProposalAgent:
     def __init__(self, *, app_name: str = "flowbound", user_id: str = "flowbound-runtime") -> None:
         from google.adk import Runner
         from google.adk.sessions import InMemorySessionService
+
         from flowbound_agent.agent import root_agent
 
         self._app_name = app_name
@@ -20,6 +21,7 @@ class GoogleAdkProposalAgent:
 
     async def propose(self, *, observation: str, predecessor_state: str) -> AgentActionProposal:
         from google.genai import types
+
         from flowbound_agent.schema import AgentActionProposalSchema
 
         session_id = f"flowbound-{uuid.uuid4().hex[:16]}"

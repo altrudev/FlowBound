@@ -26,10 +26,10 @@ class RuleBasedEvidenceAssessor:
     """
 
     _PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-        ("instruction_override", re.compile(r"\b(ignore|disregard|override)\b.{0,48}\b(instruction|policy|rule|system|previous)\b", re.I | re.S)),
-        ("role_impersonation", re.compile(r"\b(system|developer|assistant)\s*(message|prompt|instruction)\b", re.I)),
-        ("secret_exfiltration", re.compile(r"\b(reveal|print|send|exfiltrate|leak)\b.{0,64}\b(secret|token|credential|password|api[_ -]?key)\b", re.I | re.S)),
-        ("tool_directive", re.compile(r"\b(call|invoke|execute|run)\b.{0,48}\b(tool|shell|command|function|api)\b", re.I | re.S)),
+        ("instruction_override", re.compile(r"\b(ignore|disregard|override)\b.{0,48}\b(instruction|policy|rule|system|previous)\b", re.IGNORECASE | re.DOTALL)),
+        ("role_impersonation", re.compile(r"\b(system|developer|assistant)\s*(message|prompt|instruction)\b", re.IGNORECASE)),
+        ("secret_exfiltration", re.compile(r"\b(reveal|print|send|exfiltrate|leak)\b.{0,64}\b(secret|token|credential|password|api[_ -]?key)\b", re.IGNORECASE | re.DOTALL)),
+        ("tool_directive", re.compile(r"\b(call|invoke|execute|run)\b.{0,48}\b(tool|shell|command|function|api)\b", re.IGNORECASE | re.DOTALL)),
     )
 
     def assess(self, *, observation: str, evidence_ids: tuple[str, ...] = ()) -> EvidenceAssessment:
