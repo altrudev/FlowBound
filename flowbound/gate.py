@@ -21,6 +21,8 @@ class TransitionProposal:
     actor_authorities: frozenset[str]
     required_authority: str
     evidence_trusted: bool = True
+    evidence_trust_source: str = "unspecified"
+    evidence_trust_reason: str = ""
     requires_human_approval: bool = False
     human_approval_present: bool = False
     policy_version: str = "unknown"

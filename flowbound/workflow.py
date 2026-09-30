@@ -22,6 +22,8 @@ class GovernedStore(DecisionStore, Protocol):
     def record_verification(self, **payload: Any) -> None: ...
     def is_recovery_required(self, case_id: str) -> bool: ...
     def set_recovery_required(self, *, case_id: str, transition_id: str, reason: str) -> None: ...
+    def record_recovery(self, **payload: Any) -> None: ...
+    def clear_recovery_required(self, *, case_id: str, recovery_id: str) -> None: ...
 
 
 class EventPublisher(Protocol):
@@ -150,7 +152,9 @@ def govern_and_execute(
     authorized_predecessor: StateSnapshot,
     requested_effect: str,
     evidence_trusted: bool,
-    human_approval_present: bool,
+    evidence_trust_source: str = "unspecified",
+    evidence_trust_reason: str = "",
+    human_approval_present: bool = False,
     store: GovernedStore,
     events: EventPublisher,
     executor: CaseStateExecutor | None = None,
@@ -175,6 +179,8 @@ def govern_and_execute(
             actor_authorities=actor_authorities,
             required_authority="undefined-effect",
             evidence_trusted=evidence_trusted,
+            evidence_trust_source=evidence_trust_source,
+            evidence_trust_reason=evidence_trust_reason,
             human_approval_present=human_approval_present,
             policy_version=POLICY_VERSION,
             evidence_ids=evidence_ids,
@@ -191,6 +197,8 @@ def govern_and_execute(
             actor_authorities=actor_authorities,
             required_authority=rule.required_authority,
             evidence_trusted=evidence_trusted,
+            evidence_trust_source=evidence_trust_source,
+            evidence_trust_reason=evidence_trust_reason,
             requires_human_approval=rule.requires_human_approval,
             human_approval_present=human_approval_present,
             policy_version=POLICY_VERSION,

@@ -64,7 +64,7 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Current deterministic suite: **22 tests**.
+Current deterministic suite: **25 tests**.
 
 The suite covers:
 
@@ -164,11 +164,11 @@ It uses the canonical DDC standing-principles registry at commit:
 
 **STAGE / ACCEPT FOR GOOGLE CLOUD INTEGRATION TESTING. NOT YET FINAL PRODUCTION ASSURANCE.**
 
-The review specifically records unresolved work rather than claiming it is complete:
+The historical DDC review remains useful, and the 2026-09-30 Frequency sweep records the current v0.3 state in docs/FREQUENCY-REVIEW-2026-09-30.md.
 
-- evidence-trust classification still needs an independent cloud security boundary (for example Model Armor + deterministic policy)
+- the public API no longer accepts caller-asserted evidence trust; configured hostile-input signals are quarantined before model execution
 - successor verification is independent of the executor receipt but still shares the same process/state-store failure domain
-- independent recovery evidence/unblocking is not yet implemented
+- recovery clearing now requires a separate recovery:clear authority plus explicit independent evidence and a durable recovery record
 - Google Cloud runtime execution evidence is still required
 
 ## Architecture responsibility split
@@ -189,11 +189,11 @@ The review specifically records unresolved work rather than claiming it is compl
 1. authenticate a Google Cloud project and run the ADK fleet against Gemini 3.5 Flash
 2. create Firestore and Pub/Sub resources and exercise the real adapters
 3. deploy to Cloud Run and capture the `.run` URL/log evidence
-4. replace the demo evidence-trust input with Model Armor / independent classification
+4. optionally augment the pre-model trust boundary with an independent cloud classifier such as Model Armor while preserving provenance
 5. strengthen postcondition verification across a more independent failure domain
-6. expand the inspector UI for the final adversarial demo
-7. only then record the required public demo video
+6. capture the adversarial demo and cloud execution evidence
+7. only claim live Google Cloud operation after those runtime traces exist
 
 ## License
 
-Copyright © 2026 Altru.dev. All rights reserved unless a license is added later.
+Original Altru.dev material is source-available under the PolyForm Noncommercial License 1.0.0. Commercial use requires a separate written license; see LICENSE and COMMERCIAL-LICENSING.md.

@@ -27,6 +27,7 @@ class InMemoryCaseStore:
         self.executions: dict[tuple[str, str], dict[str, Any]] = {}
         self.verifications: dict[tuple[str, str], dict[str, Any]] = {}
         self.recovery_blocks: dict[str, dict[str, str]] = {}
+        self.recoveries: dict[tuple[str, str], dict[str, Any]] = {}
 
     def create_case(self, case_id: str, state: str = "OPEN") -> StateSnapshot:
         if case_id in self.cases:
@@ -63,6 +64,14 @@ class InMemoryCaseStore:
 
     def set_recovery_required(self, *, case_id: str, transition_id: str, reason: str) -> None:
         self.recovery_blocks[case_id] = {"transition_id": transition_id, "reason": reason}
+
+    def record_recovery(self, **payload: Any) -> None:
+        self.recoveries[(payload["case_id"], payload["recovery_id"])] = payload
+
+    def clear_recovery_required(self, *, case_id: str, recovery_id: str) -> None:
+        if case_id not in self.recovery_blocks:
+            raise KeyError(f"Case is not recovery-blocked: {case_id}")
+        del self.recovery_blocks[case_id]
 
     def record_decision(self, **payload: Any) -> None:
         self.decisions[(payload["case_id"], payload["transition_id"])] = payload

@@ -103,6 +103,28 @@ class FirestoreTransitionStore:
             merge=True,
         )
 
+    def record_recovery(self, **payload: Any) -> None:
+        case_id = str(payload["case_id"])
+        recovery_id = str(payload["recovery_id"])
+        (
+            self._client.collection("cases")
+            .document(case_id)
+            .collection("recoveries")
+            .document(recovery_id)
+            .set(_firestore_safe(payload))
+        )
+
+    def clear_recovery_required(self, *, case_id: str, recovery_id: str) -> None:
+        self._client.collection("cases").document(case_id).set(
+            {
+                "recovery_required": False,
+                "recovery_cleared_by": recovery_id,
+                "recovery_transition_id": None,
+                "recovery_reason": None,
+            },
+            merge=True,
+        )
+
     def record_decision(self, *, case_id: str, transition_id: str, proposal: TransitionProposal, result: GateResult) -> None:
         payload = {
             "proposal": _firestore_safe(asdict(proposal)),
