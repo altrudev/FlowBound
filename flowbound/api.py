@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from .adk_client import GoogleAdkProposalAgent
 from .cloud_store import FirestoreTransitionStore
 from .events import InMemoryEventPublisher, PubSubEventPublisher
+from .nebius_client import NebiusNemotronProposalAgent
 from .service import DeterministicDemoAgent, FlowBoundService
 from .state import InMemoryCaseStore
 
@@ -50,7 +51,14 @@ def runtime() -> tuple[FlowBoundService, object]:
         store = InMemoryCaseStore()
         events = InMemoryEventPublisher()
 
-    agent = GoogleAdkProposalAgent() if agent_mode == "google" else DeterministicDemoAgent()
+    if agent_mode == "google":
+        agent = GoogleAdkProposalAgent()
+    elif agent_mode == "nebius":
+        agent = NebiusNemotronProposalAgent()
+    elif agent_mode == "demo":
+        agent = DeterministicDemoAgent()
+    else:
+        raise RuntimeError(f"Unsupported FLOWBOUND_AGENT_MODE: {agent_mode}")
     service = FlowBoundService(
         agent=agent,
         store=store,
@@ -61,12 +69,25 @@ def runtime() -> tuple[FlowBoundService, object]:
     return service, store
 
 
-app = FastAPI(title="FlowBound", version="0.3.0")
+app = FastAPI(title="FlowBound", version="0.4.0")
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "flowbound", "version": "0.3.0"}
+    return {"status": "ok", "service": "flowbound", "version": "0.4.0"}
+
+
+
+@app.get("/api/runtime")
+def runtime_info() -> dict[str, str]:
+    service, _ = runtime()
+    agent = service.agent
+    return {
+        "agent_mode": os.getenv("FLOWBOUND_AGENT_MODE", "google" if os.getenv("FLOWBOUND_BACKEND", "memory").lower() == "cloud" else "demo").lower(),
+        "provider": getattr(agent, "base_url", "local"),
+        "model": getattr(agent, "model", getattr(agent, "__class__", type(agent)).__name__),
+        "evidence_model": getattr(agent, "evidence_model", ""),
+    }
 
 
 @app.post("/api/cases/{case_id}")
@@ -121,7 +142,7 @@ async def run_case(case_id: str, request: RunCaseRequest) -> dict:
 def home() -> str:
     return """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>FlowBound</title><style>body{font-family:system-ui;margin:0;background:#f7f8fa;color:#111827}.wrap{max-width:980px;margin:0 auto;padding:28px}.card{background:white;border:1px solid #d8dde6;border-radius:16px;padding:20px;margin:16px 0}input,textarea,button{font:inherit}input,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #b8c0cc;border-radius:10px}textarea{min-height:140px}button{padding:12px 18px;border:0;border-radius:10px;background:#111827;color:white;cursor:pointer}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}pre{white-space:pre-wrap;word-break:break-word;background:#0b1020;color:#e5e7eb;padding:16px;border-radius:12px;min-height:120px}.tag{font-size:12px;border:1px solid #9ca3af;border-radius:999px;padding:4px 9px}@media(max-width:720px){.grid{grid-template-columns:1fr}}</style></head>
-<body><div class='wrap'><h1>FlowBound</h1><p>Governed agent execution for frontline inspection workflows. <span class='tag'>Fortified Enterprise Fleet</span></p>
+<body><div class='wrap'><h1>FlowBound</h1><p>Governed agent execution for frontline inspection workflows. Nebius Token Factory + NVIDIA Nemotron competition path. <span class='tag'>Fortified Enterprise Fleet</span></p>
 <div class='card'><label>Case ID</label><input id='case' value='demo-case-1'><p><button onclick='createCase()'>Create OPEN case</button></p></div>
 <div class='card'><label>Inspector observation</label><textarea id='obs'>Rear exit door does not latch. Emergency light appears inoperative. Tenant reports the condition has persisted for three weeks.</textarea><p class='small'>Evidence trust is derived by FlowBound before model execution; the browser cannot self-assert trust.</p><button onclick='runCase()'>Run governed fleet</button></div>
 <div class='grid'><div class='card'><h3>Agent + Gate</h3><pre id='result'>Waiting…</pre></div><div class='card'><h3>Current case state</h3><pre id='state'>Waiting…</pre></div></div>

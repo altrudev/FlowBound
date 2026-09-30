@@ -64,7 +64,7 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Current deterministic suite: **25 tests**.
+Current deterministic suite: **27 tests**.
 
 The suite covers:
 
@@ -95,6 +95,28 @@ uvicorn flowbound.api:app --reload
 Open `http://127.0.0.1:8000`.
 
 `FLOWBOUND_AGENT_MODE=demo` is a development fallback only. It is **not** the hackathon proof path and must not be presented as Gemini execution.
+
+## Run the Nebius Token Factory / NVIDIA Nemotron fleet
+
+This is the active competition path for the Nebius × NVIDIA Global AI Hackathon.
+
+```bash
+export NEBIUS_API_KEY="YOUR_TOKEN_FACTORY_KEY"
+export FLOWBOUND_BACKEND=memory
+export FLOWBOUND_AGENT_MODE=nebius
+export NEBIUS_MODEL="nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+# Optional stronger evidence challenge:
+export NEBIUS_EVIDENCE_MODEL="nvidia/nemotron-3-super-120b-a12b"
+uvicorn flowbound.api:app --reload
+```
+
+The Token Factory endpoint defaults to `https://api.tokenfactory.nebius.com/v1/`.
+FlowBound makes three bounded inference calls: intake, evidence challenge, and action proposal.
+The NVIDIA model does not receive execution authority; the deterministic FlowBound gate still owns
+authorization, successor state, execution, verification, and recovery.
+
+The transition evidence records the model provider, model ID, and a per-run Nebius trace identifier.
+See `docs/NEBIUS-HACKATHON.md` for the competition build boundary and licensing gate.
 
 ## Run the Google ADK fleet locally
 

@@ -4,13 +4,20 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .trust import EvidenceAssessment, EvidenceAssessor, RuleBasedEvidenceAssessor
-from .workflow import EventPublisher, GovernedStore, TransitionOutcome, govern_and_execute
+from .workflow import (
+    EventPublisher,
+    GovernedStore,
+    govern_and_execute,
+)
 
 
 @dataclass(frozen=True)
 class AgentActionProposal:
     requested_effect: str
     rationale: str
+    provider: str = "local"
+    model: str = "deterministic"
+    trace_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -106,6 +113,9 @@ class FlowBoundService:
             evidence_ids=evidence_ids,
             originating_need=observation,
             agent_rationale=agent_proposal.rationale,
+            agent_provider=agent_proposal.provider,
+            agent_model=agent_proposal.model,
+            agent_trace_id=agent_proposal.trace_id,
         )
         if include_assessment:
             return agent_proposal, outcome, assessment

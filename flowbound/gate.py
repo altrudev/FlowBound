@@ -29,6 +29,9 @@ class TransitionProposal:
     evidence_ids: tuple[str, ...] = ()
     originating_need: str = ""
     agent_rationale: str = ""
+    agent_provider: str = ""
+    agent_model: str = ""
+    agent_trace_id: str = ""
 
 
 @dataclass(frozen=True)
